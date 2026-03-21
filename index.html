@@ -1,282 +1,326 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>White Dot Counter</title>
-  <style>
-    :root { --pad: 16px; }
-    body { margin:0; font-family: system-ui, sans-serif; background:#f6f7f9; color:#111; }
-    .wrap { max-width: 1100px; margin: 0 auto; padding-bottom: 80px; }
-    .card { background:#fff; border-radius: 16px; box-shadow: 0 10px 24px rgba(0,0,0,0.06); padding: 16px; }
-    h1 { font-size: 22px; margin: 0 0 6px; }
-    p { margin: 0 0 16px; color:#444; }
-    .controls { 
-      position: fixed; bottom: 0; left: 0; right: 0; 
-      background: #fff; padding: 10px; 
-      display: flex; flex-wrap: wrap; gap: 8px; 
-      justify-content: center; align-items: center; 
-      border-top: 1px solid #ddd;
-      z-index: 10;
-    }
-    .pill { padding:8px 12px; border-radius: 999px; background:#f1f3f5; display:inline-flex; align-items:center; gap:8px; }
-    input[type=file] { padding:6px; border:1px solid #ddd; border-radius:10px; background:#fff; }
-    button { padding:8px 12px; border-radius: 999px; border: 0; background:#111; color:#fff; cursor:pointer; }
-    button[disabled] { opacity:.5; cursor: default; }
-    .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
-    @media (min-width: 900px) { .grid { grid-template-columns: 3fr 1fr; } }
-    canvas, video { width: 100%; border:1px solid #e6e7eb; border-radius:12px; }
-    .aside h2 { font-size:16px; margin:0 0 8px; }
-    .aside label { font-size:12px; color:#555; display:block; margin-bottom:4px; }
-    .aside input[type=range] { width: 100%; }
-    .muted { color:#666; font-size:12px; margin-top:8px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Sticker Counter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow+Condensed:wght@300;600;800&display=swap');
+  :root{--bg:#0a0a0f;--surface:#13131a;--card:#1a1a24;--border:#2a2a3a;--accent:#00e5ff;--accent2:#ff6b35;--success:#00ff88;--text:#e8e8f0;--muted:#6b6b80;}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow Condensed',sans-serif;min-height:100vh;max-width:480px;margin:0 auto;}
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,.012) 2px,rgba(0,229,255,.012) 4px);pointer-events:none;z-index:999;}
+  header{padding:18px 20px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;background:rgba(10,10,15,.95);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;}
+  .logo{font-family:'Space Mono',monospace;font-size:9px;color:var(--accent);letter-spacing:3px;opacity:.6;margin-bottom:2px;}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.5px;}
+  h1 span{color:var(--accent);}
+  .status-pill{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 12px;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:all .3s;flex-shrink:0;}
+  .dot.ready{background:var(--success);box-shadow:0 0 8px var(--success);animation:pulse 2s infinite;}
+  .dot.processing{background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse .6s infinite;}
+  .dot.error{background:#ff4444;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .status-text{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
+  main{padding:16px;}
+  .mode-toggle{display:flex;background:var(--surface);border-radius:10px;padding:4px;margin-bottom:14px;border:1px solid var(--border);}
+  .mode-btn{flex:1;padding:10px;background:none;border:none;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:7px;transition:all .2s;}
+  .mode-btn.active{background:var(--card);color:var(--accent);border:1px solid var(--border);}
+  .camera-wrap{position:relative;background:#000;border:1px solid var(--border);border-radius:16px;overflow:hidden;aspect-ratio:3/4;margin-bottom:12px;}
+  #video,#canvas-preview{width:100%;height:100%;object-fit:cover;display:block;}
+  #canvas-preview{display:none;}
+  .cam-corners{position:absolute;inset:0;pointer-events:none;}
+  .corner{position:absolute;width:22px;height:22px;border-color:var(--accent);border-style:solid;opacity:.7;}
+  .corner.tl{top:14px;left:14px;border-width:2px 0 0 2px;}
+  .corner.tr{top:14px;right:14px;border-width:2px 2px 0 0;}
+  .corner.bl{bottom:14px;left:14px;border-width:0 0 2px 2px;}
+  .corner.br{bottom:14px;right:14px;border-width:0 2px 2px 0;}
+  .scan-line{position:absolute;left:14px;right:14px;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scan 3s ease-in-out infinite;opacity:0;}
+  @keyframes scan{0%{top:8%;opacity:0}10%{opacity:.8}90%{opacity:.8}100%{top:92%;opacity:0}}
+  #detection-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .no-camera{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted);}
+  .cam-icon{font-size:44px;opacity:.25;}
+  .no-camera p{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1px;text-align:center;}
+  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+  .btn{padding:13px;border-radius:10px;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;letter-spacing:1px;text-transform:uppercase;transition:all .2s;}
+  .btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);}
+  .btn-secondary:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+  .btn-secondary:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-capture{width:100%;padding:20px;background:linear-gradient(135deg,var(--accent),#0099bb);color:var(--bg);border-radius:14px;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:22px;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;transition:all .2s;}
+  .btn-capture:active{transform:scale(.98);}
+  .btn-capture:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-capture:not(:disabled):hover{box-shadow:0 0 30px rgba(0,229,255,.35);}
+  .upload-zone{background:var(--card);border:2px dashed var(--border);border-radius:14px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px;}
+  .upload-zone:hover{border-color:var(--accent);}
+  .upload-zone .upload-icon{font-size:32px;margin-bottom:8px;}
+  .upload-zone p{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;}
+  #file-input{display:none;}
+  .upload-img-wrap{position:relative;margin-bottom:12px;display:none;}
+  #upload-preview{width:100%;border-radius:14px;display:block;border:1px solid var(--border);}
+  #upload-det-canvas{position:absolute;top:0;left:0;width:100%;height:100%;border-radius:14px;}
+  .result-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px;display:none;animation:slideUp .3s ease;}
+  @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .result-card.visible{display:block;}
+  .count-display{text-align:center;padding:10px 0 16px;}
+  .count-number{font-size:108px;font-weight:800;line-height:1;color:var(--accent);text-shadow:0 0 50px rgba(0,229,255,.45);font-family:'Space Mono',monospace;}
+  .count-label{font-size:13px;color:var(--muted);letter-spacing:3px;margin-top:2px;text-transform:uppercase;}
+  .conf-row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;}
+  .conf-label-text{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;}
+  .conf-value{font-family:'Space Mono',monospace;font-size:12px;color:var(--success);font-weight:700;}
+  .conf-bar{background:var(--surface);border-radius:4px;height:4px;margin-top:6px;overflow:hidden;}
+  .conf-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--success));border-radius:4px;transition:width .6s ease;}
+  .det-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+  .det-stat{background:var(--surface);border-radius:10px;padding:10px 12px;}
+  .det-stat-val{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--text);}
+  .det-stat-lbl{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+  .history-wrap{margin-top:4px;}
+  .history-title{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+  .history-item{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--surface);border-radius:8px;margin-bottom:6px;border-left:2px solid var(--accent);}
+  .hist-count{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--accent);}
+  .hist-meta{text-align:right;}
+  .hist-time{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);}
+  .error-msg{background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);border-radius:10px;padding:12px 14px;font-family:'Space Mono',monospace;font-size:11px;color:#ff8888;margin-bottom:14px;display:none;line-height:1.6;}
+  .error-msg.visible{display:block;}
+  .loading-overlay{position:fixed;inset:0;background:rgba(10,10,15,.92);display:none;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:18px;}
+  .loading-overlay.active{display:flex;}
+  .spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:2px;animation:pulse 1s infinite;}
+  .slider-wrap{margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .slider-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .slider-label{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;}
+  .slider-val{font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);font-weight:700;}
+  input[type=range]{width:100%;accent-color:var(--accent);}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>White Dot Counter</h1>
-      <p>Upload a photo or take one with your camera. The app detects <b>white dots</b> and shows the count.</p>
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">COUNTING STICKERS...</div>
+</div>
+<header>
+  <div>
+    <div class="logo">▸ STICKER DETECTION SYSTEM</div>
+    <h1>STICKER <span>COUNTER</span></h1>
+  </div>
+  <div class="status-pill">
+    <div class="dot ready" id="status-dot"></div>
+    <span class="status-text" id="status-text">READY</span>
+  </div>
+</header>
+<main>
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="mode-camera" onclick="setMode('camera')">📷 CAMERA</button>
+    <button class="mode-btn" id="mode-upload" onclick="setMode('upload')">📁 UPLOAD</button>
+  </div>
+  <div class="slider-wrap">
+    <div class="slider-header">
+      <span class="slider-label">CONFIDENCE THRESHOLD</span>
+      <span class="slider-val" id="conf-display">20%</span>
+    </div>
+    <input type="range" id="conf-slider" min="10" max="90" value="20"
+           oninput="document.getElementById('conf-display').textContent=this.value+'%'">
+  </div>
 
-      <div class="grid">
-        <div class="card">
-          <video id="video" autoplay playsinline style="display:none"></video>
-          <img id="img" alt="uploaded" style="display:none" />
-          <canvas id="canvas"></canvas>
-          <div class="muted">Tip: ensure good lighting and high contrast for best results.</div>
-        </div>
-        <div class="card aside">
-          <h2>Detection settings</h2>
-          <label>Saturation max (<span id="satMaxVal">0.20</span>)</label>
-          <input id="satMax" type="range" min="0" max="1" step="0.01" value="0.20">
-          <label>Brightness min (<span id="valMinVal">0.85</span>)</label>
-          <input id="valMin" type="range" min="0" max="1" step="0.01" value="0.85">
-          <label>Min area (px): <span id="minAreaVal">80</span></label>
-          <input id="minArea" type="range" min="10" max="2000" step="10" value="80">
-          <div class="muted">Adjust if dots are missed or noise is detected.</div>
-        </div>
+  <!-- CAMERA -->
+  <div id="camera-section">
+    <div class="camera-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas-preview"></canvas>
+      <canvas id="detection-canvas"></canvas>
+      <div class="cam-corners">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <div class="scan-line"></div>
       </div>
+      <div class="no-camera" id="no-camera">
+        <div class="cam-icon">📷</div>
+        <p>TAP START CAMERA</p>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="start-btn" onclick="startCamera()">▶ START CAM</button>
+      <button class="btn btn-secondary" id="flip-btn" onclick="flipCamera()" disabled>⟳ FLIP</button>
+    </div>
+    <button class="btn-capture" id="capture-btn" onclick="captureAndCount()" disabled>⬤ &nbsp;CAPTURE &amp; COUNT</button>
+  </div>
+
+  <!-- UPLOAD -->
+  <div id="upload-section" style="display:none">
+    <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">📂</div>
+      <p>TAP TO SELECT PHOTO</p>
+      <p style="margin-top:4px;font-size:10px">JPG · PNG · WEBP</p>
+    </div>
+    <input type="file" id="file-input" accept="image/*" onchange="handleUpload(this)">
+    <div class="upload-img-wrap" id="upload-img-wrap">
+      <img id="upload-preview" alt="preview">
+      <canvas id="upload-det-canvas"></canvas>
     </div>
   </div>
 
-  <!-- Controls fixed at bottom -->
-  <div class="controls">
-    <input id="file" type="file" accept="image/*">
-    <button id="openCamera">Open Camera</button>
-    <button id="flipCamera" disabled>Flip Camera</button>
-    <button id="capture" disabled>Capture Photo</button>
-    <button id="analyze" disabled>Re-run analysis</button>
-    <div class="pill">Count: <b id="count">0</b></div>
+  <div class="error-msg" id="error-msg"></div>
+
+  <div class="result-card" id="result-card">
+    <div class="count-display">
+      <div class="count-number" id="count-number">0</div>
+      <div class="count-label">STICKERS DETECTED</div>
+    </div>
+    <div class="conf-row">
+      <span class="conf-label-text">AVG CONFIDENCE</span>
+      <span class="conf-value" id="avg-conf-val">—</span>
+    </div>
+    <div class="conf-bar"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
+    <div class="det-grid" id="det-grid"></div>
   </div>
 
-  <script>
-    const fileInput = document.getElementById('file');
-    const openCameraBtn = document.getElementById('openCamera');
-    const flipCameraBtn = document.getElementById('flipCamera');
-    const captureBtn = document.getElementById('capture');
-    const analyzeBtn = document.getElementById('analyze');
-    const video = document.getElementById('video');
-    const img = document.getElementById('img');
-    const canvas = document.getElementById('canvas');
-    const countEl = document.getElementById('count');
-    const satMax = document.getElementById('satMax');
-    const valMin = document.getElementById('valMin');
-    const minArea = document.getElementById('minArea');
-    const satMaxVal = document.getElementById('satMaxVal');
-    const valMinVal = document.getElementById('valMinVal');
-    const minAreaVal = document.getElementById('minAreaVal');
+  <div class="history-wrap" id="history-wrap" style="display:none">
+    <div class="history-title">▸ RECENT SCANS</div>
+    <div id="history-list"></div>
+  </div>
+</main>
 
-    let processing = false;
-    let stream = null;
-    let currentFacingMode = "user"; // front by default
+<script>
+const RF={apiKey:'Zamoypr0lNwQQtqudGDC',project:'label-counter-wj3fd',version:'2'};
+let stream=null,facing='environment',lastBlob=null;
+let history=JSON.parse(localStorage.getItem('lc-history')||'[]');
 
-    function setProcessing(p) {
-      processing = p;
-      analyzeBtn.disabled = !img.src || p;
-      analyzeBtn.textContent = p ? 'Processing…' : 'Re-run analysis';
-    }
+function setStatus(t,s){document.getElementById('status-text').textContent=t;document.getElementById('status-dot').className='dot '+(s||'');}
+function setMode(m){
+  document.getElementById('mode-camera').classList.toggle('active',m==='camera');
+  document.getElementById('mode-upload').classList.toggle('active',m==='upload');
+  document.getElementById('camera-section').style.display=m==='camera'?'block':'none';
+  document.getElementById('upload-section').style.display=m==='upload'?'block':'none';
+  clearResult();if(m==='upload'&&stream)stopStream();
+}
+async function startCamera(){
+  try{
+    setStatus('STARTING...','processing');stopStream();
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1920},height:{ideal:1440}},audio:false});
+    const v=document.getElementById('video');v.srcObject=stream;v.style.display='block';
+    document.getElementById('canvas-preview').style.display='none';
+    document.getElementById('no-camera').style.display='none';
+    document.getElementById('capture-btn').disabled=false;
+    document.getElementById('flip-btn').disabled=false;
+    document.getElementById('start-btn').textContent='■ STOP';
+    document.getElementById('start-btn').onclick=stopCameraUI;
+    setStatus('CAMERA ON','ready');
+  }catch(e){showError('Camera: '+e.message);setStatus('CAM ERROR','error');}
+}
+function stopStream(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
+function stopCameraUI(){
+  stopStream();
+  const v=document.getElementById('video');v.srcObject=null;v.style.display='none';
+  document.getElementById('no-camera').style.display='flex';
+  document.getElementById('capture-btn').disabled=true;
+  document.getElementById('flip-btn').disabled=true;
+  document.getElementById('start-btn').textContent='▶ START CAM';
+  document.getElementById('start-btn').onclick=startCamera;
+  setStatus('READY','ready');
+}
+function flipCamera(){facing=facing==='environment'?'user':'environment';startCamera();}
 
-    function rgbToHsv(r,g,b){
-      r/=255; g/=255; b/=255;
-      const max=Math.max(r,g,b), min=Math.min(r,g,b);
-      let h, s, v=max;
-      const d=max-min;
-      s = max===0 ? 0 : d/max;
-      if(max===min){ h=0; }
-      else{
-        switch(max){
-          case r: h=(g-b)/d + (g<b?6:0); break;
-          case g: h=(b-r)/d + 2; break;
-          default: h=(r-g)/d + 4; break;
-        }
-        h/=6;
-      }
-      return { h:h*360, s, v };
-    }
+async function captureAndCount(){
+  const video=document.getElementById('video');
+  const preview=document.getElementById('canvas-preview');
+  preview.width=video.videoWidth;preview.height=video.videoHeight;
+  preview.getContext('2d').drawImage(video,0,0);
+  video.style.display='none';preview.style.display='block';
+  const dc=document.getElementById('detection-canvas');
+  dc.width=preview.width;dc.height=preview.height;
+  preview.toBlob(blob=>{lastBlob=blob;runInference(blob,'detection-canvas',preview.width,preview.height);},'image/jpeg',0.93);
+}
 
-    function morph(src, w, h, radius=1, dilate=true){
-      const dst = new Uint8Array(w*h);
-      for(let y=0;y<h;y++){
-        for(let x=0;x<w;x++){
-          let ok = dilate ? 0 : 1;
-          for(let dy=-radius; dy<=radius; dy++){
-            for(let dx=-radius; dx<=radius; dx++){
-              const nx=x+dx, ny=y+dy;
-              if(nx<0||nx>=w||ny<0||ny>=h) continue;
-              const v = src[ny*w+nx];
-              if(dilate) ok = Math.max(ok, v); else ok = Math.min(ok, v);
-            }
-          }
-          dst[y*w+x] = ok;
-        }
-      }
-      return dst;
-    }
+function handleUpload(input){
+  const file=input.files[0];if(!file)return;
+  lastBlob=file;
+  const img=document.getElementById('upload-preview');
+  img.src=URL.createObjectURL(file);
+  img.onload=()=>{
+    document.getElementById('upload-img-wrap').style.display='block';
+    const c=document.getElementById('upload-det-canvas');
+    c.width=img.naturalWidth;c.height=img.naturalHeight;
+    // Auto-start counting immediately
+    runInference(file,'upload-det-canvas',c.width,c.height);
+  };
+}
 
-    function analyze(){
-      if(!img.complete || !img.naturalWidth) return;
-      setProcessing(true);
-      const maxSide = 1600;
-      const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
-      canvas.width = Math.round(img.naturalWidth * scale);
-      canvas.height = Math.round(img.naturalHeight * scale);
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+async function runInference(blob,canvasId,imgW,imgH){
+  showLoading(true);clearResult();setStatus('ANALYZING...','processing');hideError();
+  try{
+    const conf=parseInt(document.getElementById('conf-slider').value)/100;
+    const url=`https://detect.roboflow.com/${RF.project}/${RF.version}?api_key=${RF.apiKey}&confidence=${conf}&overlap=0.3`;
+    const b64=await blobToBase64(blob);
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b64.split(',')[1]});
+    if(!res.ok)throw new Error(`API ${res.status}: ${(await res.text()).substring(0,200)}`);
+    const data=await res.json();
+    const preds=data.predictions||[];
+    drawBoxes(canvasId,preds,data.image);
+    showResult(preds);pushHistory(preds.length);
+    setStatus(`${preds.length} STICKERS FOUND`,'ready');
+  }catch(e){showError(e.message);setStatus('ERROR','error');}
+  finally{showLoading(false);}
+}
 
-      const _satMax = parseFloat(satMax.value);
-      const _valMin = parseFloat(valMin.value);
-      const _minArea = parseInt(minArea.value, 10);
+function drawBoxes(canvasId,preds,imageInfo){
+  const canvas=document.getElementById(canvasId);
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!preds.length)return;
+  const sx=canvas.width/(imageInfo?.width||canvas.width);
+  const sy=canvas.height/(imageInfo?.height||canvas.height);
+  preds.forEach((p,i)=>{
+    const x=(p.x-p.width/2)*sx,y=(p.y-p.height/2)*sy,w=p.width*sx,h=p.height*sy;
+    ctx.save();ctx.shadowBlur=12;ctx.shadowColor='#00e5ff';
+    ctx.strokeStyle='#00e5ff';ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);ctx.restore();
+    ctx.fillStyle='rgba(0,229,255,0.07)';ctx.fillRect(x,y,w,h);
+    const num=String(i+1);ctx.font='bold 12px monospace';
+    const tw=ctx.measureText(num).width;
+    ctx.fillStyle='#00e5ff';ctx.fillRect(x-1,y-20,tw+12,20);
+    ctx.fillStyle='#0a0a0f';ctx.fillText(num,x+5,y-5);
+  });
+}
 
-      const { data, width, height } = ctx.getImageData(0,0,canvas.width,canvas.height);
-      const mask = new Uint8Array(width*height);
-      for(let y=0;y<height;y++){
-        for(let x=0;x<width;x++){
-          const idx = (y*width+x)*4;
-          const r=data[idx], g=data[idx+1], b=data[idx+2];
-          const { s,v } = rgbToHsv(r,g,b);
-          mask[y*width+x] = (s <= _satMax && v >= _valMin) ? 1 : 0;
-        }
-      }
+function showResult(preds){
+  document.getElementById('result-card').classList.add('visible');
+  countUp(preds.length);
+  const avgConf=preds.length?preds.reduce((s,p)=>s+p.confidence,0)/preds.length:0;
+  document.getElementById('conf-fill').style.width=(avgConf*100)+'%';
+  document.getElementById('avg-conf-val').textContent=avgConf>0?(avgConf*100).toFixed(1)+'%':'—';
+  const minC=preds.length?Math.min(...preds.map(p=>p.confidence)):0;
+  const maxC=preds.length?Math.max(...preds.map(p=>p.confidence)):0;
+  document.getElementById('det-grid').innerHTML=`
+    <div class="det-stat"><div class="det-stat-val">${preds.length}</div><div class="det-stat-lbl">TOTAL COUNT</div></div>
+    <div class="det-stat"><div class="det-stat-val">${avgConf>0?(avgConf*100).toFixed(0)+'%':'—'}</div><div class="det-stat-lbl">AVG CONF</div></div>
+    <div class="det-stat"><div class="det-stat-val">${maxC>0?(maxC*100).toFixed(0)+'%':'—'}</div><div class="det-stat-lbl">MAX CONF</div></div>
+    <div class="det-stat"><div class="det-stat-val">${minC>0?(minC*100).toFixed(0)+'%':'—'}</div><div class="det-stat-lbl">MIN CONF</div></div>`;
+}
 
-      const eroded = morph(mask, width, height, 1, false);
-      const opened = morph(eroded, width, height, 1, true);
-
-      const labels = new Int32Array(width*height);
-      let current = 0;
-      const parent = [0];
-      function find(a){ while(parent[a] !== a){ parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
-      function union(a,b){ a=find(a); b=find(b); if(a!==b) parent[Math.max(a,b)] = Math.min(a,b); }
-
-      for(let y=0;y<height;y++){
-        for(let x=0;x<width;x++){
-          const i=y*width+x;
-          if(!opened[i]) continue;
-          const neighbors=[];
-          if(x>0 && opened[i-1]) neighbors.push(labels[i-1]);
-          if(y>0 && opened[i-width]) neighbors.push(labels[i-width]);
-          if(x>0 && y>0 && opened[i-width-1]) neighbors.push(labels[i-width-1]);
-          if(x<width-1 && y>0 && opened[i-width+1]) neighbors.push(labels[i-width+1]);
-          if(neighbors.length===0){
-            current+=1; labels[i]=current; parent[current]=current;
-          }else{
-            const minLabel = Math.min(...neighbors.filter(n=>n>0));
-            labels[i]=minLabel;
-            for(const n of neighbors) if(n>0) union(minLabel,n);
-          }
-        }
-      }
-
-      const area=new Map(), sumX=new Map(), sumY=new Map();
-      for(let i=0;i<labels.length;i++){
-        if(labels[i]===0) continue;
-        const root=find(labels[i]);
-        labels[i]=root;
-        area.set(root, (area.get(root)||0)+1);
-        const y=Math.floor(i/width), x=i%width;
-        sumX.set(root, (sumX.get(root)||0)+x);
-        sumY.set(root, (sumY.get(root)||0)+y);
-      }
-
-      const kept=[];
-      for(const [lab,a] of area.entries()){
-        if(a>=_minArea) kept.push(lab);
-      }
-
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      ctx.lineWidth = 2;
-      for(const lab of kept){
-        const cx=(sumX.get(lab)||0)/(area.get(lab)||1);
-        const cy=(sumY.get(lab)||0)/(area.get(lab)||1);
-        const r=Math.max(6, Math.sqrt(area.get(lab)/Math.PI));
-        ctx.beginPath();
-        ctx.arc(cx, cy, r+6, 0, Math.PI*2);
-        ctx.stroke();
-      }
-      countEl.textContent = kept.length;
-      setProcessing(false);
-    }
-
-    fileInput.addEventListener('change', (e)=>{
-      const f = e.target.files?.[0];
-      if(!f) return;
-      stopCamera();
-      const url = URL.createObjectURL(f);
-      img.onload = ()=>{ analyzeBtn.disabled=false; analyze(); };
-      img.src = url;
-      img.style.display = "block";
-      video.style.display = "none";
-    });
-
-    async function startCamera() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
-        video.srcObject = stream;
-        video.style.display = "block";
-        img.style.display = "none";
-        captureBtn.disabled = false;
-        flipCameraBtn.disabled = false;
-      } catch (err) {
-        alert("Camera access denied or unavailable.");
-      }
-    }
-
-    openCameraBtn.addEventListener('click', ()=> {
-      currentFacingMode = "user"; // reset to front
-      startCamera();
-    });
-
-    flipCameraBtn.addEventListener('click', ()=> {
-      currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
-      stopCamera();
-      startCamera();
-    });
-
-    captureBtn.addEventListener('click', ()=>{
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = video.videoWidth;
-      tempCanvas.height = video.videoHeight;
-      const ctx = tempCanvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      img.src = tempCanvas.toDataURL('image/png');
-      img.onload = ()=>{ analyzeBtn.disabled=false; analyze(); };
-      img.style.display = "block";
-      video.style.display = "none";
-      stopCamera();
-    });
-
-    function stopCamera(){
-      if(stream){
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-        captureBtn.disabled = true;
-        flipCameraBtn.disabled = true;
-      }
-    }
-
-    analyzeBtn.addEventListener('click', ()=> analyze());
-    satMax.addEventListener('input', ()=>{ satMaxVal.textContent = parseFloat(satMax.value).toFixed(2); analyze(); });
-    valMin.addEventListener('input', ()=>{ valMinVal.textContent = parseFloat(valMin.value).toFixed(2); analyze(); });
-    minArea.addEventListener('input', ()=>{ minAreaVal.textContent = minArea.value; analyze(); });
-  </script>
+function countUp(target){
+  const el=document.getElementById('count-number');let n=0;
+  const step=Math.max(1,Math.ceil(target/25));
+  const t=setInterval(()=>{n=Math.min(n+step,target);el.textContent=n;if(n>=target)clearInterval(t);},25);
+}
+function clearResult(){
+  document.getElementById('result-card').classList.remove('visible');
+  ['detection-canvas','upload-det-canvas'].forEach(id=>{const c=document.getElementById(id);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);});
+}
+function pushHistory(count){
+  const now=new Date();
+  history.unshift({count,time:now.toLocaleTimeString(),date:now.toLocaleDateString()});
+  history=history.slice(0,15);localStorage.setItem('lc-history',JSON.stringify(history));renderHistory();
+}
+function renderHistory(){
+  if(!history.length)return;
+  document.getElementById('history-wrap').style.display='block';
+  document.getElementById('history-list').innerHTML=history.map(h=>`
+    <div class="history-item"><span class="hist-count">${h.count}</span>
+    <div class="hist-meta"><div class="hist-time">${h.time}</div><div class="hist-time" style="opacity:.5">${h.date}</div></div></div>`).join('');
+}
+function blobToBase64(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob);});}
+function showLoading(v){document.getElementById('loading').classList.toggle('active',v);}
+function showError(msg){const el=document.getElementById('error-msg');el.textContent='⚠ '+msg;el.classList.add('visible');}
+function hideError(){document.getElementById('error-msg').classList.remove('visible');}
+renderHistory();
+</script>
 </body>
 </html>
