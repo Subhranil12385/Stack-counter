@@ -6,409 +6,859 @@
 <title>Sticker Counter</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow+Condensed:wght@300;600;800&display=swap');
-  :root{--bg:#0a0a0f;--surface:#13131a;--card:#1a1a24;--border:#2a2a3a;--accent:#00e5ff;--accent2:#ff6b35;--success:#00ff88;--text:#e8e8f0;--muted:#6b6b80;}
+  :root{
+    --bg:#0a0a0f;--surface:#13131a;--card:#1a1a24;--border:#2a2a3a;
+    --accent:#00e5ff;--accent2:#ff6b35;--success:#00ff88;--text:#e8e8f0;--muted:#6b6b80;
+  }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  body{background:var(--bg);color:var(--text);font-family:'Barlow Condensed',sans-serif;min-height:100vh;max-width:480px;margin:0 auto;}
-  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,.012) 2px,rgba(0,229,255,.012) 4px);pointer-events:none;z-index:999;}
-  header{padding:18px 20px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;background:rgba(10,10,15,.95);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;}
+  html,body{height:100%;}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow Condensed',sans-serif;max-width:480px;margin:0 auto;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,.012) 2px,rgba(0,229,255,.012) 4px);pointer-events:none;z-index:9998;}
+
+  /* HEADER */
+  header{padding:16px 20px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;background:rgba(10,10,15,.97);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;}
   .logo{font-family:'Space Mono',monospace;font-size:9px;color:var(--accent);letter-spacing:3px;opacity:.6;margin-bottom:2px;}
-  h1{font-size:26px;font-weight:800;letter-spacing:-.5px;}
+  h1{font-size:24px;font-weight:800;letter-spacing:-.5px;}
   h1 span{color:var(--accent);}
-  .status-pill{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 12px;}
+  .status-pill{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 11px;flex-shrink:0;}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:all .3s;flex-shrink:0;}
-  .dot.ready{background:var(--success);box-shadow:0 0 8px var(--success);animation:pulse 2s infinite;}
-  .dot.processing{background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse .6s infinite;}
+  .dot.ready{background:var(--success);box-shadow:0 0 8px var(--success);animation:blink 2s infinite;}
+  .dot.processing{background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:blink .5s infinite;}
   .dot.error{background:#ff4444;}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
   .status-text{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
-  main{padding:16px;}
-  .mode-toggle{display:flex;background:var(--surface);border-radius:10px;padding:4px;margin-bottom:14px;border:1px solid var(--border);}
-  .mode-btn{flex:1;padding:10px;background:none;border:none;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:7px;transition:all .2s;}
+
+  main{padding:14px;}
+
+  /* MODE TOGGLE */
+  .mode-toggle{display:flex;background:var(--surface);border-radius:10px;padding:4px;margin-bottom:12px;border:1px solid var(--border);}
+  .mode-btn{flex:1;padding:9px;background:none;border:none;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:7px;transition:all .2s;}
   .mode-btn.active{background:var(--card);color:var(--accent);border:1px solid var(--border);}
-  .camera-wrap{position:relative;background:#000;border:1px solid var(--border);border-radius:16px;overflow:hidden;aspect-ratio:3/4;margin-bottom:12px;}
-  #video,#canvas-preview{width:100%;height:100%;object-fit:cover;display:block;}
-  #canvas-preview{display:none;position:absolute;inset:0;}
-  .cam-corners{position:absolute;inset:0;pointer-events:none;}
-  .corner{position:absolute;width:22px;height:22px;border-color:var(--accent);border-style:solid;opacity:.7;}
-  .corner.tl{top:14px;left:14px;border-width:2px 0 0 2px;}
-  .corner.tr{top:14px;right:14px;border-width:2px 2px 0 0;}
-  .corner.bl{bottom:14px;left:14px;border-width:0 0 2px 2px;}
-  .corner.br{bottom:14px;right:14px;border-width:0 2px 2px 0;}
-  .scan-line{position:absolute;left:14px;right:14px;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scan 3s ease-in-out infinite;opacity:0;}
-  @keyframes scan{0%{top:8%;opacity:0}10%{opacity:.8}90%{opacity:.8}100%{top:92%;opacity:0}}
-  #detection-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
-  .cam-tap-hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-family:'Space Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:2px;background:rgba(10,10,15,.7);padding:6px 14px;border-radius:20px;pointer-events:none;white-space:nowrap;transition:opacity .3s;}
-  .cam-tap-hint.hidden{opacity:0;}
-  .upload-zone{background:var(--card);border:2px dashed var(--border);border-radius:14px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px;}
-  .upload-zone:hover{border-color:var(--accent);}
-  .upload-zone .upload-icon{font-size:32px;margin-bottom:8px;}
-  .upload-zone p{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;}
-  #file-input{display:none;}
-  .upload-img-wrap{position:relative;margin-bottom:12px;display:none;}
-  #upload-preview{width:100%;border-radius:14px;display:block;border:1px solid var(--border);}
-  #upload-det-canvas{position:absolute;top:0;left:0;width:100%;height:100%;border-radius:14px;}
-  .btn-capture{width:100%;padding:20px;background:linear-gradient(135deg,var(--accent),#0099bb);color:var(--bg);border-radius:14px;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:22px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;transition:all .2s;}
-  .btn-capture:active{transform:scale(.98);}
-  .btn-capture:disabled{opacity:.4;cursor:not-allowed;}
-  .btn-capture:not(:disabled):hover{box-shadow:0 0 30px rgba(0,229,255,.35);}
-  .btn-new{width:100%;padding:16px;background:var(--card);color:var(--accent);border:1px solid var(--accent);border-radius:14px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;transition:all .2s;display:none;}
-  .btn-new:hover{background:rgba(0,229,255,.08);}
-  .result-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px;display:none;animation:slideUp .3s ease;}
-  @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-  .result-card.visible{display:block;}
-  .count-display{text-align:center;padding:10px 0 16px;}
-  .count-number{font-size:108px;font-weight:800;line-height:1;color:var(--accent);text-shadow:0 0 50px rgba(0,229,255,.45);font-family:'Space Mono',monospace;}
-  .count-label{font-size:13px;color:var(--muted);letter-spacing:3px;margin-top:2px;text-transform:uppercase;}
-  .conf-row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;}
-  .conf-label-text{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;}
-  .conf-value{font-family:'Space Mono',monospace;font-size:12px;color:var(--success);font-weight:700;}
-  .conf-bar{background:var(--surface);border-radius:4px;height:4px;margin-top:6px;overflow:hidden;}
-  .conf-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--success));border-radius:4px;transition:width .6s ease;}
-  .det-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
-  .det-stat{background:var(--surface);border-radius:10px;padding:10px 12px;}
-  .det-stat-val{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--text);}
-  .det-stat-lbl{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
-  .history-wrap{margin-top:4px;}
-  .history-title{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
-  .history-item{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--surface);border-radius:8px;margin-bottom:6px;border-left:2px solid var(--accent);}
-  .hist-count{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--accent);}
-  .hist-meta{text-align:right;}
-  .hist-time{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);}
-  .error-msg{background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);border-radius:10px;padding:12px 14px;font-family:'Space Mono',monospace;font-size:11px;color:#ff8888;margin-bottom:14px;display:none;line-height:1.6;}
-  .error-msg.visible{display:block;}
-  .loading-overlay{position:fixed;inset:0;background:rgba(10,10,15,.92);display:none;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:18px;}
-  .loading-overlay.active{display:flex;}
-  .spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .loading-text{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:2px;animation:pulse 1s infinite;}
-  .slider-wrap{margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
-  .slider-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-  .slider-label{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;}
-  .slider-val{font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);font-weight:700;}
+
+  /* CONFIDENCE */
+  .conf-wrap{margin-bottom:12px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
+  .row-between{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .lbl{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;}
+  .val{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);font-weight:700;}
   input[type=range]{width:100%;accent-color:var(--accent);}
+
+  /* ══════════════════════════════════════════
+     CAMERA SECTION
+  ══════════════════════════════════════════ */
+  #camera-section{}
+
+  /* Camera viewport */
+  .cam-viewport{position:relative;background:#000;border:1px solid var(--border);border-radius:16px;overflow:hidden;aspect-ratio:3/4;margin-bottom:0;touch-action:none;}
+  #video{width:100%;height:100%;object-fit:cover;display:block;transform-origin:center center;}
+  #canvas-frozen{position:absolute;inset:0;width:100%;height:100%;display:none;object-fit:cover;}
+  #det-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+
+  /* Corner brackets on live */
+  .brackets{position:absolute;inset:0;pointer-events:none;}
+  .br{position:absolute;width:20px;height:20px;border-color:var(--accent);border-style:solid;opacity:.65;}
+  .br.tl{top:12px;left:12px;border-width:2px 0 0 2px;}
+  .br.tr{top:12px;right:12px;border-width:2px 2px 0 0;}
+  .br.bl{bottom:12px;left:12px;border-width:0 0 2px 2px;}
+  .br.brr{bottom:12px;right:12px;border-width:0 2px 2px 0;}
+  .scan{position:absolute;left:12px;right:12px;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanmove 3s ease-in-out infinite;opacity:0;}
+  @keyframes scanmove{0%{top:8%;opacity:0}10%{opacity:.7}90%{opacity:.7}100%{top:92%;opacity:0}}
+
+  /* Tap hint */
+  .tap-hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-family:'Space Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:2px;background:rgba(10,10,15,.75);padding:5px 14px;border-radius:20px;pointer-events:none;white-space:nowrap;transition:opacity .25s;}
+  .tap-hint.gone{opacity:0;pointer-events:none;}
+
+  /* ZOOM BAR — bottom of camera */
+  .zoom-bar{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:0 0 16px 16px;border-top:none;padding:10px 16px 12px;margin-bottom:12px;}
+  .zoom-ico{font-size:13px;color:var(--muted);}
+  .zoom-bar input{flex:1;accent-color:var(--accent);}
+  .zoom-tag{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);min-width:38px;text-align:right;font-weight:700;}
+  /* lens preset buttons */
+  .lens-btns{display:flex;gap:6px;margin-bottom:12px;}
+  .lens-btn{flex:1;padding:8px 4px;background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:8px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.5px;cursor:pointer;transition:all .2s;text-align:center;}
+  .lens-btn.active{background:rgba(0,229,255,.12);border-color:var(--accent);color:var(--accent);}
+
+  /* Camera action buttons */
+  .cam-actions{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+
+  /* ══════════════════════════════════════════
+     CROP OVERLAY (fullscreen, over image)
+  ══════════════════════════════════════════ */
+  /* Sits on top of frozen canvas / upload img */
+  .crop-layer{position:absolute;inset:0;display:none;cursor:crosshair;z-index:10;}
+  .crop-layer.active{display:block;}
+
+  /* Dark vignette canvas drawn in JS */
+  #crop-canvas-cam{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+
+  /* Upload crop */
+  .upload-img-wrap{position:relative;margin-bottom:10px;display:none;border-radius:14px;overflow:hidden;border:1px solid var(--border);}
+  #upload-img{width:100%;display:block;border-radius:14px;}
+  #upload-det-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  #crop-canvas-up{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .crop-layer-up{position:absolute;inset:0;display:none;cursor:crosshair;z-index:10;}
+  .crop-layer-up.active{display:block;}
+
+  /* ══════════════════════════════════════════
+     BUTTONS
+  ══════════════════════════════════════════ */
+  .btn{width:100%;padding:16px;border-radius:13px;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:1.5px;text-transform:uppercase;transition:all .2s;}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),#0099bb);color:var(--bg);}
+  .btn-primary:active{transform:scale(.98);}
+  .btn-primary:not(:disabled):hover{box-shadow:0 0 28px rgba(0,229,255,.35);}
+  .btn-primary:disabled{opacity:.35;cursor:not-allowed;}
+  .btn-danger{background:var(--card);color:var(--accent2);border:1px solid var(--accent2);}
+  .btn-danger:hover{background:rgba(255,107,53,.08);}
+  .btn-outline{background:var(--card);color:var(--accent);border:1px solid var(--accent);}
+  .btn-outline:hover{background:rgba(0,229,255,.08);}
+  .btn-ghost{background:var(--card);color:var(--muted);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+  /* Upload zone */
+  .upload-zone{background:var(--card);border:2px dashed var(--border);border-radius:14px;padding:26px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px;}
+  .upload-zone:hover{border-color:var(--accent);}
+  .upload-zone .ico{font-size:30px;margin-bottom:6px;}
+  .upload-zone p{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;}
+  #file-input{display:none;}
+
+  /* RESULT */
+  .result-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:12px;display:none;animation:slideUp .3s ease;}
+  @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .result-card.on{display:block;}
+  .big-num{font-size:96px;font-weight:800;line-height:1;color:var(--accent);text-shadow:0 0 40px rgba(0,229,255,.5);font-family:'Space Mono',monospace;text-align:center;}
+  .big-lbl{font-size:12px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;text-align:center;margin-top:2px;}
+  .conf-bar-wrap{margin-top:12px;}
+  .conf-bar{background:var(--surface);border-radius:4px;height:4px;overflow:hidden;margin-top:5px;}
+  .conf-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--success));border-radius:4px;transition:width .6s;}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+  .stat{background:var(--surface);border-radius:10px;padding:9px 12px;}
+  .stat-v{font-family:'Space Mono',monospace;font-size:17px;font-weight:700;}
+  .stat-l{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+
+  /* ERROR / LOADING */
+  .err{background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);border-radius:10px;padding:11px 14px;font-family:'Space Mono',monospace;font-size:11px;color:#ff8888;margin-bottom:12px;display:none;line-height:1.6;}
+  .err.on{display:block;}
+  .loader{position:fixed;inset:0;background:rgba(10,10,15,.93);display:none;align-items:center;justify-content:center;z-index:600;flex-direction:column;gap:16px;}
+  .loader.on{display:flex;}
+  .spinner{width:42px;height:42px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loader-txt{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:2px;animation:blink 1s infinite;}
 </style>
 </head>
 <body>
-<div class="loading-overlay" id="loading">
-  <div class="spinner"></div>
-  <div class="loading-text">COUNTING STICKERS...</div>
-</div>
+
+<div class="loader" id="loader"><div class="spinner"></div><div class="loader-txt">COUNTING STICKERS...</div></div>
+
 <header>
   <div>
     <div class="logo">▸ STICKER DETECTION SYSTEM</div>
     <h1>STICKER <span>COUNTER</span></h1>
   </div>
   <div class="status-pill">
-    <div class="dot ready" id="status-dot"></div>
-    <span class="status-text" id="status-text">READY</span>
+    <div class="dot ready" id="sdot"></div>
+    <span class="status-text" id="stxt">READY</span>
   </div>
 </header>
+
 <main>
   <div class="mode-toggle">
-    <button class="mode-btn active" id="mode-camera" onclick="setMode('camera')">📷 CAMERA</button>
-    <button class="mode-btn" id="mode-upload" onclick="setMode('upload')">📁 UPLOAD</button>
+    <button class="mode-btn active" id="mb-camera" onclick="setMode('camera')">📷 CAMERA</button>
+    <button class="mode-btn" id="mb-upload" onclick="setMode('upload')">📁 UPLOAD</button>
   </div>
-  <div class="slider-wrap">
-    <div class="slider-header">
-      <span class="slider-label">CONFIDENCE THRESHOLD</span>
-      <span class="slider-val" id="conf-display">10%</span>
+
+  <div class="conf-wrap">
+    <div class="row-between">
+      <span class="lbl">CONFIDENCE THRESHOLD</span>
+      <span class="val" id="conf-val">10%</span>
     </div>
     <input type="range" id="conf-slider" min="10" max="90" value="10"
-           oninput="document.getElementById('conf-display').textContent=this.value+'%'">
+           oninput="document.getElementById('conf-val').textContent=this.value+'%'">
   </div>
 
-  <!-- CAMERA MODE -->
-  <div id="camera-section">
-    <div class="camera-wrap" id="camera-wrap" onclick="handleCamTap()">
+  <!-- ═══════════ CAMERA ═══════════ -->
+  <div id="sec-camera">
+
+    <!-- Viewport -->
+    <div class="cam-viewport" id="cam-vp">
       <video id="video" autoplay playsinline muted></video>
-      <canvas id="canvas-preview"></canvas>
-      <canvas id="detection-canvas"></canvas>
-      <div class="cam-corners">
-        <div class="corner tl"></div><div class="corner tr"></div>
-        <div class="corner bl"></div><div class="corner br"></div>
-        <div class="scan-line" id="scan-line"></div>
+      <canvas id="canvas-frozen"></canvas>
+      <canvas id="det-canvas"></canvas>
+      <canvas id="crop-canvas-cam"></canvas>
+      <div class="crop-layer" id="cam-crop-layer"></div>
+      <div class="brackets">
+        <div class="br tl"></div><div class="br tr"></div>
+        <div class="br bl"></div><div class="br brr"></div>
+        <div class="scan" id="scan-line"></div>
       </div>
-      <div class="cam-tap-hint" id="cam-hint">TAP TO CAPTURE</div>
+      <div class="tap-hint" id="tap-hint">TAP TO CAPTURE</div>
     </div>
-    <button class="btn-new" id="btn-new" onclick="resetCamera()">↺ &nbsp;CLICK NEW</button>
+
+    <!-- ZOOM BAR (below viewport, rounded bottom) -->
+    <div class="zoom-bar" id="zoom-bar">
+      <span class="zoom-ico">🔍−</span>
+      <input type="range" id="zoom-slider" min="1" max="10" step="0.1" value="1"
+             oninput="applyZoom(parseFloat(this.value))">
+      <span class="zoom-ico">+</span>
+      <span class="zoom-tag" id="zoom-tag">1.0×</span>
+    </div>
+
+    <!-- Lens presets -->
+    <div class="lens-btns" id="lens-btns">
+      <button class="lens-btn active" id="lb-1x" onclick="setLens(1)">1×</button>
+      <button class="lens-btn" id="lb-2x" onclick="setLens(2)">2×</button>
+      <button class="lens-btn" id="lb-telephoto" onclick="setLens('telephoto')" style="display:none">📷 TELE</button>
+    </div>
+
+    <!-- Camera action buttons — change based on state -->
+    <div class="cam-actions" id="cam-actions">
+      <!-- STATE: live — nothing shown, tap viewport to capture -->
+    </div>
   </div>
 
-  <!-- UPLOAD MODE -->
-  <div id="upload-section" style="display:none">
+  <!-- ═══════════ UPLOAD ═══════════ -->
+  <div id="sec-upload" style="display:none">
     <div class="upload-zone" onclick="document.getElementById('file-input').click()">
-      <div class="upload-icon">📂</div>
+      <div class="ico">📂</div>
       <p>TAP TO SELECT PHOTO</p>
-      <p style="margin-top:4px;font-size:10px">JPG · PNG · WEBP</p>
+      <p style="margin-top:4px;font-size:9px">JPG · PNG · WEBP</p>
     </div>
     <input type="file" id="file-input" accept="image/*" onchange="handleUpload(this)">
-    <div class="upload-img-wrap" id="upload-img-wrap">
-      <img id="upload-preview" alt="preview">
+
+    <div class="upload-img-wrap" id="up-wrap">
+      <img id="upload-img" alt="">
       <canvas id="upload-det-canvas"></canvas>
+      <canvas id="crop-canvas-up"></canvas>
+      <div class="crop-layer-up" id="up-crop-layer"></div>
     </div>
+
+    <div class="cam-actions" id="up-actions"></div>
   </div>
 
-  <div class="error-msg" id="error-msg"></div>
+  <div class="err" id="err"></div>
 
-  <div class="result-card" id="result-card">
-    <div class="count-display">
-      <div class="count-number" id="count-number">0</div>
-      <div class="count-label">STICKERS DETECTED</div>
+  <div class="result-card" id="result">
+    <div class="big-num" id="big-num">0</div>
+    <div class="big-lbl">STICKERS DETECTED</div>
+    <div class="conf-bar-wrap">
+      <div class="row-between"><span class="lbl">AVG CONFIDENCE</span><span class="val" id="avg-conf">—</span></div>
+      <div class="conf-bar"><div class="conf-fill" id="conf-fill" style="width:0"></div></div>
     </div>
-    <div class="conf-row">
-      <span class="conf-label-text">AVG CONFIDENCE</span>
-      <span class="conf-value" id="avg-conf-val">—</span>
-    </div>
-    <div class="conf-bar"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
-    <div class="det-grid" id="det-grid"></div>
-  </div>
-
-  <div class="history-wrap" id="history-wrap" style="display:none">
-    <div class="history-title">▸ RECENT SCANS</div>
-    <div id="history-list"></div>
+    <div class="stat-grid" id="stat-grid"></div>
   </div>
 </main>
 
 <script>
-const RF = { apiKey:'Zamoypr0lNwQQtqudGDC', project:'label-counter-wj3fd', version:'2' };
-let stream = null;
-let facing = 'environment';
-let frozen = false;
-let history = JSON.parse(localStorage.getItem('lc-history') || '[]');
+// ════════════════════════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════════════════════════
+const RF={apiKey:'Zamoypr0lNwQQtqudGDC',project:'label-counter-wj3fd',version:'2'};
 
-// ── STATUS ─────────────────────────────────────────────────
-function setStatus(t, s) {
-  document.getElementById('status-text').textContent = t;
-  document.getElementById('status-dot').className = 'dot ' + (s || '');
+// ════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════
+let stream=null, facing='environment';
+let zoomLevel=1;
+let availableDevices=[];   // video input devices
+let currentDeviceId=null;
+let hasTelephoто=false;
+
+let camState='live'; // live | frozen | cropping
+let frozenBlob=null;
+
+let upFile=null, upBlob=null, upCropped=false;
+let upState='idle'; // idle | loaded | cropping
+
+// crop drag state
+let cropDragging=false, cropStartX=0, cropStartY=0, cropRect=null;
+// active crop context: {overlayEl, canvasEl, containerEl, onDone}
+let activeCrop=null;
+
+// ════════════════════════════════════════════════════════════
+//  STATUS
+// ════════════════════════════════════════════════════════════
+function ss(t,s){document.getElementById('stxt').textContent=t;document.getElementById('sdot').className='dot '+(s||'');}
+
+// ════════════════════════════════════════════════════════════
+//  MODE
+// ════════════════════════════════════════════════════════════
+function setMode(m){
+  ['camera','upload'].forEach(x=>{
+    document.getElementById('mb-'+x).classList.toggle('active',m===x);
+    document.getElementById('sec-'+x).style.display=m===x?'block':'none';
+  });
+  clearResult(); hideErr();
+  if(m==='camera') initCamera();
+  else stopStream();
 }
 
-// ── MODE ───────────────────────────────────────────────────
-function setMode(m) {
-  document.getElementById('mode-camera').classList.toggle('active', m === 'camera');
-  document.getElementById('mode-upload').classList.toggle('active', m === 'upload');
-  document.getElementById('camera-section').style.display = m === 'camera' ? 'block' : 'none';
-  document.getElementById('upload-section').style.display = m === 'upload' ? 'block' : 'none';
-  clearResult();
-  if (m === 'camera') {
-    startCamera();
-  } else {
-    stopStream();
-  }
-}
-
-// ── CAMERA ─────────────────────────────────────────────────
-async function startCamera() {
-  try {
-    setStatus('STARTING...', 'processing');
-    stopStream();
-    frozen = false;
-
-    // Clear everything
-    clearDetectionCanvas('detection-canvas');
-    const preview = document.getElementById('canvas-preview');
-    preview.style.display = 'none';
-    const video = document.getElementById('video');
-    video.style.display = 'block';
-    document.getElementById('btn-new').style.display = 'none';
-    document.getElementById('cam-hint').classList.remove('hidden');
-    document.getElementById('scan-line').style.animationPlayState = 'running';
-    clearResult();
-
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1440 } },
-      audio: false
-    });
-    video.srcObject = stream;
-    setStatus('TAP TO CAPTURE', 'ready');
-  } catch(e) {
-    showError('Camera error: ' + e.message);
-    setStatus('CAM ERROR', 'error');
-  }
-}
-
-function stopStream() {
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-}
-
-// Tap on camera = capture if not frozen
-function handleCamTap() {
-  if (frozen) return; // ignore taps while frozen/counting
-  captureAndCount();
-}
-
-async function captureAndCount() {
-  if (frozen) return;
-  frozen = true;
-
-  const video = document.getElementById('video');
-  const preview = document.getElementById('canvas-preview');
-
-  // Freeze frame onto preview canvas
-  preview.width = video.videoWidth;
-  preview.height = video.videoHeight;
-  preview.getContext('2d').drawImage(video, 0, 0);
-
-  // Show frozen frame, hide live video
-  video.style.display = 'none';
-  preview.style.display = 'block';
-
-  // Size & clear detection canvas
-  const dc = document.getElementById('detection-canvas');
-  dc.width = preview.width;
-  dc.height = preview.height;
-  clearDetectionCanvas('detection-canvas');
-
-  // Hide hint, stop scan line
-  document.getElementById('cam-hint').classList.add('hidden');
-  document.getElementById('scan-line').style.animationPlayState = 'paused';
-
-  // Stop camera stream (save battery)
-  stopStream();
-
-  preview.toBlob(blob => {
-    runInference(blob, 'detection-canvas', preview.width, preview.height, () => {
-      // Show "Click New" button after counting
-      document.getElementById('btn-new').style.display = 'block';
-    });
-  }, 'image/jpeg', 0.93);
-}
-
-function resetCamera() {
-  frozen = false;
-  clearDetectionCanvas('detection-canvas');
-  clearResult();
-  hideError();
-  document.getElementById('btn-new').style.display = 'none';
+// ════════════════════════════════════════════════════════════
+//  CAMERA — device enumeration & start
+// ════════════════════════════════════════════════════════════
+async function initCamera(){
+  // Enumerate devices to find telephoto
+  try{
+    const devs=await navigator.mediaDevices.enumerateDevices();
+    availableDevices=devs.filter(d=>d.kind==='videoinput');
+    // Heuristic: device labels containing 'telephoto','tele','ultra','wide' etc.
+    const tele=availableDevices.find(d=>/telephoto|tele/i.test(d.label));
+    if(tele){
+      hasTelephoто=true;
+      document.getElementById('lb-telephoto').style.display='block';
+      document.getElementById('lb-telephoto').dataset.deviceId=tele.deviceId;
+    }
+  }catch(_){}
   startCamera();
 }
 
-// ── UPLOAD ─────────────────────────────────────────────────
-function handleUpload(input) {
-  const file = input.files[0]; if (!file) return;
-  const img = document.getElementById('upload-preview');
-  img.src = URL.createObjectURL(file);
-  img.onload = () => {
-    document.getElementById('upload-img-wrap').style.display = 'block';
-    const c = document.getElementById('upload-det-canvas');
-    c.width = img.naturalWidth; c.height = img.naturalHeight;
-    clearDetectionCanvas('upload-det-canvas');
-    runInference(file, 'upload-det-canvas', c.width, c.height);
-  };
-  // Reset file input so same file can be re-selected
-  input.value = '';
+async function startCamera(deviceId){
+  try{
+    ss('STARTING...','processing');
+    stopStream();
+    resetCamState();
+
+    const constraints={audio:false,video:deviceId
+      ? {deviceId:{exact:deviceId},width:{ideal:1920},height:{ideal:1440}}
+      : {facingMode:{ideal:facing},width:{ideal:1920},height:{ideal:1440}}
+    };
+    stream=await navigator.mediaDevices.getUserMedia(constraints);
+    currentDeviceId=stream.getVideoTracks()[0].getSettings().deviceId;
+    document.getElementById('video').srcObject=stream;
+    document.getElementById('video').style.display='block';
+
+    // Try native zoom support
+    const track=stream.getVideoTracks()[0];
+    const caps=track.getCapabilities?track.getCapabilities():{};
+    if(caps.zoom){
+      document.getElementById('zoom-slider').min=caps.zoom.min;
+      document.getElementById('zoom-slider').max=caps.zoom.max;
+      document.getElementById('zoom-slider').step=(caps.zoom.max-caps.zoom.min)/100;
+      document.getElementById('zoom-slider').value=caps.zoom.min;
+      zoomLevel=caps.zoom.min;
+    } else {
+      document.getElementById('zoom-slider').min=1;
+      document.getElementById('zoom-slider').max=10;
+      document.getElementById('zoom-slider').step=0.1;
+      document.getElementById('zoom-slider').value=1;
+      zoomLevel=1;
+    }
+    document.getElementById('zoom-tag').textContent='1.0×';
+
+    // Bind tap
+    const vp=document.getElementById('cam-vp');
+    vp.onclick=()=>{ if(camState==='live') captureFrame(); };
+    ss('TAP TO CAPTURE','ready');
+    setCamActions([]);
+  }catch(e){showErr('Camera: '+e.message);ss('CAM ERROR','error');}
 }
 
-// ── INFERENCE ──────────────────────────────────────────────
-async function runInference(blob, canvasId, imgW, imgH, onDone) {
-  showLoading(true); clearResult(); setStatus('ANALYZING...', 'processing'); hideError();
-  try {
-    const conf = parseInt(document.getElementById('conf-slider').value) / 100;
-    const url = `https://detect.roboflow.com/${RF.project}/${RF.version}?api_key=${RF.apiKey}&confidence=${conf}&overlap=0.3`;
-    const b64 = await blobToBase64(blob);
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: b64.split(',')[1]
-    });
-    if (!res.ok) throw new Error(`API ${res.status}: ${(await res.text()).substring(0, 200)}`);
-    const data = await res.json();
-    const preds = data.predictions || [];
-    drawBoxes(canvasId, preds, data.image);
-    showResult(preds);
-    pushHistory(preds.length);
-    setStatus(`${preds.length} STICKERS FOUND`, 'ready');
-    if (onDone) onDone();
-  } catch(e) {
-    showError(e.message);
-    setStatus('ERROR', 'error');
-    if (onDone) onDone();
-  } finally {
-    showLoading(false);
+function stopStream(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+}
+
+function resetCamState(){
+  camState='live';
+  frozenBlob=null;
+  cropRect=null;
+  endCropMode();
+  clearCanvas('det-canvas');
+  clearCanvas('crop-canvas-cam');
+  const frz=document.getElementById('canvas-frozen');
+  frz.style.display='none';
+  document.getElementById('video').style.display='block';
+  document.getElementById('tap-hint').classList.remove('gone');
+  document.getElementById('scan-line').style.animationPlayState='running';
+  document.getElementById('zoom-bar').style.display='flex';
+  document.getElementById('lens-btns').style.display='flex';
+  clearResult(); hideErr();
+}
+
+// ════════════════════════════════════════════════════════════
+//  ZOOM
+// ════════════════════════════════════════════════════════════
+function applyZoom(val){
+  zoomLevel=parseFloat(val);
+  const tag=zoomLevel.toFixed(1)+'×';
+  document.getElementById('zoom-tag').textContent=tag;
+
+  if(!stream) return;
+  const track=stream.getVideoTracks()[0];
+  const caps=track.getCapabilities?track.getCapabilities():{};
+  if(caps.zoom){
+    track.applyConstraints({advanced:[{zoom:val}]}).catch(()=>{});
+    document.getElementById('video').style.transform='scale(1)';
+  } else {
+    document.getElementById('video').style.transform=`scale(${zoomLevel})`;
   }
-}
-
-// ── DRAW BOXES ─────────────────────────────────────────────
-function clearDetectionCanvas(id) {
-  const c = document.getElementById(id);
-  if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
-}
-
-function drawBoxes(canvasId, preds, imageInfo) {
-  const canvas = document.getElementById(canvasId);
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!preds.length) return;
-  const sx = canvas.width  / (imageInfo?.width  || canvas.width);
-  const sy = canvas.height / (imageInfo?.height || canvas.height);
-  preds.forEach((p, i) => {
-    const x = (p.x - p.width/2)  * sx;
-    const y = (p.y - p.height/2) * sy;
-    const w = p.width  * sx;
-    const h = p.height * sy;
-    ctx.save(); ctx.shadowBlur = 12; ctx.shadowColor = '#00e5ff';
-    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h); ctx.restore();
-    ctx.fillStyle = 'rgba(0,229,255,0.07)'; ctx.fillRect(x, y, w, h);
-    const num = String(i + 1);
-    ctx.font = 'bold 12px monospace';
-    const tw = ctx.measureText(num).width;
-    ctx.fillStyle = '#00e5ff'; ctx.fillRect(x - 1, y - 20, tw + 12, 20);
-    ctx.fillStyle = '#0a0a0f'; ctx.fillText(num, x + 5, y - 5);
+  // Highlight matching lens btn
+  ['1x','2x'].forEach(k=>{
+    const n=parseFloat(k);
+    document.getElementById('lb-'+k).classList.toggle('active',Math.abs(zoomLevel-n)<0.15);
   });
 }
 
-// ── RESULT ─────────────────────────────────────────────────
-function showResult(preds) {
-  document.getElementById('result-card').classList.add('visible');
-  countUp(preds.length);
-  const avgConf = preds.length ? preds.reduce((s,p) => s + p.confidence, 0) / preds.length : 0;
-  document.getElementById('conf-fill').style.width = (avgConf * 100) + '%';
-  document.getElementById('avg-conf-val').textContent = avgConf > 0 ? (avgConf*100).toFixed(1)+'%' : '—';
-  const minC = preds.length ? Math.min(...preds.map(p=>p.confidence)) : 0;
-  const maxC = preds.length ? Math.max(...preds.map(p=>p.confidence)) : 0;
-  document.getElementById('det-grid').innerHTML = `
-    <div class="det-stat"><div class="det-stat-val">${preds.length}</div><div class="det-stat-lbl">TOTAL COUNT</div></div>
-    <div class="det-stat"><div class="det-stat-val">${avgConf>0?(avgConf*100).toFixed(0)+'%':'—'}</div><div class="det-stat-lbl">AVG CONF</div></div>
-    <div class="det-stat"><div class="det-stat-val">${maxC>0?(maxC*100).toFixed(0)+'%':'—'}</div><div class="det-stat-lbl">MAX CONF</div></div>
-    <div class="det-stat"><div class="det-stat-val">${minC>0?(minC*100).toFixed(0)+'%':'—'}</div><div class="det-stat-lbl">MIN CONF</div></div>`;
+function setLens(val){
+  if(val==='telephoto'){
+    const devId=document.getElementById('lb-telephoto').dataset.deviceId;
+    if(devId) startCamera(devId);
+    return;
+  }
+  const slider=document.getElementById('zoom-slider');
+  slider.value=val;
+  applyZoom(val);
+  ['1x','2x'].forEach(k=>document.getElementById('lb-'+k).classList.toggle('active',parseFloat(k)===val));
 }
 
-function countUp(target) {
-  const el = document.getElementById('count-number'); let n = 0;
-  const step = Math.max(1, Math.ceil(target / 25));
-  const t = setInterval(() => { n = Math.min(n + step, target); el.textContent = n; if (n >= target) clearInterval(t); }, 25);
+// ════════════════════════════════════════════════════════════
+//  CAPTURE
+// ════════════════════════════════════════════════════════════
+async function captureFrame(){
+  if(camState!=='live') return;
+  camState='frozen';
+
+  const video=document.getElementById('video');
+  const frz=document.getElementById('canvas-frozen');
+
+  frz.width=video.videoWidth; frz.height=video.videoHeight;
+  const ctx=frz.getContext('2d');
+
+  // Account for CSS zoom
+  if(zoomLevel>1 && !nativeZoom()){
+    const s=zoomLevel;
+    const sw=video.videoWidth/s, sh=video.videoHeight/s;
+    const sx=(video.videoWidth-sw)/2, sy=(video.videoHeight-sh)/2;
+    ctx.drawImage(video,sx,sy,sw,sh,0,0,frz.width,frz.height);
+  } else {
+    ctx.drawImage(video,0,0);
+  }
+
+  video.style.display='none';
+  frz.style.display='block';
+  document.getElementById('tap-hint').classList.add('gone');
+  document.getElementById('scan-line').style.animationPlayState='paused';
+  document.getElementById('zoom-bar').style.display='none';
+  document.getElementById('lens-btns').style.display='none';
+  document.getElementById('cam-vp').onclick=null;
+  stopStream();
+
+  const dc=document.getElementById('det-canvas');
+  dc.width=frz.width; dc.height=frz.height;
+
+  frz.toBlob(blob=>{
+    frozenBlob=blob;
+    setCamActions(['count','crop','new']);
+    ss('CAPTURED','ready');
+  },'image/jpeg',0.95);
 }
 
-function clearResult() {
-  document.getElementById('result-card').classList.remove('visible');
+function nativeZoom(){
+  if(!stream) return false;
+  const track=stream.getVideoTracks()[0];
+  const caps=track.getCapabilities?track.getCapabilities():{};
+  return !!caps.zoom;
 }
 
-// ── HISTORY ────────────────────────────────────────────────
-function pushHistory(count) {
-  const now = new Date();
-  history.unshift({ count, time: now.toLocaleTimeString(), date: now.toLocaleDateString() });
-  history = history.slice(0, 15);
-  localStorage.setItem('lc-history', JSON.stringify(history));
-  renderHistory();
-}
-function renderHistory() {
-  if (!history.length) return;
-  document.getElementById('history-wrap').style.display = 'block';
-  document.getElementById('history-list').innerHTML = history.map(h => `
-    <div class="history-item"><span class="hist-count">${h.count}</span>
-    <div class="hist-meta"><div class="hist-time">${h.time}</div><div class="hist-time" style="opacity:.5">${h.date}</div></div></div>`).join('');
+// ════════════════════════════════════════════════════════════
+//  CAM ACTION BUTTONS
+// ════════════════════════════════════════════════════════════
+function setCamActions(btns){
+  const el=document.getElementById('cam-actions');
+  el.innerHTML='';
+  if(btns.includes('count')){
+    const b=mkBtn('▸  COUNT NOW','btn-primary',()=>{
+      runInference(frozenBlob,'det-canvas');
+      setCamActions(['recrop','new']);
+    });
+    el.appendChild(b);
+  }
+  if(btns.includes('crop')){
+    const b=mkBtn('✂  CROP REGION','btn-outline',()=>startCamCrop());
+    el.appendChild(b);
+  }
+  if(btns.includes('count-crop')){
+    const b=mkBtn('▸  COUNT SELECTION','btn-primary',()=>countCamCrop());
+    el.appendChild(b);
+  }
+  if(btns.includes('recrop')){
+    const row=document.createElement('div');
+    row.className='two-col';
+    row.appendChild(mkBtn('✂  RE-CROP','btn-outline',()=>startCamCrop()));
+    row.appendChild(mkBtn('↺  NEW CAPTURE','btn-ghost',()=>{resetCamState();startCamera();}));
+    el.appendChild(row);
+    return;
+  }
+  if(btns.includes('new')){
+    const b=mkBtn('↺  NEW CAPTURE','btn-ghost',()=>{resetCamState();startCamera();});
+    el.appendChild(b);
+  }
 }
 
-// ── HELPERS ────────────────────────────────────────────────
-function blobToBase64(blob) {
-  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+function mkBtn(txt,cls,fn){
+  const b=document.createElement('button');
+  b.className='btn '+cls;
+  b.innerHTML=txt;
+  b.style.marginBottom='0';
+  b.onclick=fn;
+  return b;
 }
-function showLoading(v) { document.getElementById('loading').classList.toggle('active', v); }
-function showError(msg) { const el = document.getElementById('error-msg'); el.textContent = '⚠ ' + msg; el.classList.add('visible'); }
-function hideError() { document.getElementById('error-msg').classList.remove('visible'); }
 
-// ── INIT ───────────────────────────────────────────────────
-renderHistory();
-startCamera(); // auto-start on load
+// ════════════════════════════════════════════════════════════
+//  CROP — Camera
+// ════════════════════════════════════════════════════════════
+function startCamCrop(){
+  camState='cropping';
+  cropRect=null;
+  clearCanvas('det-canvas');
+  clearResult();
+  ss('DRAW CROP REGION','processing');
+  const container=document.getElementById('cam-vp');
+  const overlay=document.getElementById('cam-crop-layer');
+  const cropCv=document.getElementById('crop-canvas-cam');
+  cropCv.width=container.clientWidth;
+  cropCv.height=container.clientHeight;
+  // Draw full dark overlay
+  drawDarkOverlay(cropCv,null);
+  activeCrop={overlay,cropCv,container,isCamera:true};
+  overlay.classList.add('active');
+  bindCropEvents(overlay);
+  setCamActions(['new']); // only show new capture while cropping; count-crop added dynamically
+}
+
+function countCamCrop(){
+  if(!cropRect||!frozenBlob){return;}
+  // Extract crop from frozen canvas
+  const frz=document.getElementById('canvas-frozen');
+  const scaleX=frz.width/document.getElementById('cam-vp').clientWidth;
+  const scaleY=frz.height/document.getElementById('cam-vp').clientHeight;
+  extractCrop(frozenBlob,frz,cropRect,scaleX,scaleY,blob=>{
+    endCropMode();
+    frozenBlob=blob;
+    // Replace frozen preview with cropped
+    const img=new Image();
+    img.onload=()=>{
+      frz.width=img.width;frz.height=img.height;
+      frz.getContext('2d').drawImage(img,0,0);
+      const dc=document.getElementById('det-canvas');
+      dc.width=img.width;dc.height=img.height;
+      clearCanvas('det-canvas');
+    };
+    img.src=URL.createObjectURL(blob);
+    runInference(blob,'det-canvas');
+    setCamActions(['recrop','new']);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  UPLOAD
+// ════════════════════════════════════════════════════════════
+function handleUpload(input){
+  const file=input.files?.[0]||input; if(!file) return;
+  upFile=file; upBlob=file; upCropped=false; upState='loaded';
+  cropRect=null; endCropMode();
+  clearCanvas('upload-det-canvas');
+  clearCanvas('crop-canvas-up');
+  clearResult(); hideErr();
+
+  const img=document.getElementById('upload-img');
+  img.src=URL.createObjectURL(file);
+  img.onload=()=>{
+    document.getElementById('up-wrap').style.display='block';
+    const c=document.getElementById('upload-det-canvas');
+    c.width=img.naturalWidth; c.height=img.naturalHeight;
+    const cu=document.getElementById('crop-canvas-up');
+    cu.width=img.naturalWidth; cu.height=img.naturalHeight;
+    setUpActions(['count','crop']);
+    runInference(file,'upload-det-canvas');
+  };
+  if(input.value!==undefined) input.value='';
+}
+
+function setUpActions(btns){
+  const el=document.getElementById('up-actions');
+  el.innerHTML='';
+  if(btns.includes('count')){
+    el.appendChild(mkBtn('▸  RECOUNT','btn-primary',()=>{
+      runInference(upBlob,'upload-det-canvas');
+    }));
+  }
+  if(btns.includes('crop')){
+    el.appendChild(mkBtn('✂  CROP REGION','btn-outline',()=>startUpCrop()));
+  }
+  if(btns.includes('count-crop')){
+    el.appendChild(mkBtn('▸  COUNT SELECTION','btn-primary',()=>countUpCrop()));
+  }
+  if(btns.includes('recrop')){
+    const row=document.createElement('div');
+    row.className='two-col';
+    row.appendChild(mkBtn('✂  RE-CROP','btn-outline',()=>startUpCrop()));
+    row.appendChild(mkBtn('↺  RESET IMAGE','btn-ghost',()=>resetUpload()));
+    el.appendChild(row);
+  }
+}
+
+function startUpCrop(){
+  upState='cropping';
+  cropRect=null;
+  clearCanvas('upload-det-canvas');
+  clearResult();
+  ss('DRAW CROP REGION','processing');
+  const container=document.getElementById('up-wrap');
+  const overlay=document.getElementById('up-crop-layer');
+  const cropCv=document.getElementById('crop-canvas-up');
+  const img=document.getElementById('upload-img');
+  cropCv.width=img.clientWidth;
+  cropCv.height=img.clientHeight;
+  cropCv.style.width='100%';
+  cropCv.style.height='100%';
+  cropCv.style.position='absolute';
+  cropCv.style.top='0';cropCv.style.left='0';
+  drawDarkOverlay(cropCv,null);
+  activeCrop={overlay,cropCv,container,isCamera:false};
+  overlay.classList.add('active');
+  bindCropEvents(overlay);
+  setUpActions([]); // clear while cropping; count-crop added dynamically
+}
+
+function countUpCrop(){
+  if(!cropRect||!upBlob) return;
+  const img=document.getElementById('upload-img');
+  const scaleX=img.naturalWidth/img.clientWidth;
+  const scaleY=img.naturalHeight/img.clientHeight;
+  extractCropFromImg(upBlob,img,cropRect,scaleX,scaleY,blob=>{
+    upBlob=blob; upCropped=true;
+    endCropMode();
+    // Replace preview
+    const newImg=document.getElementById('upload-img');
+    newImg.src=URL.createObjectURL(blob);
+    newImg.onload=()=>{
+      const c=document.getElementById('upload-det-canvas');
+      c.width=newImg.naturalWidth;c.height=newImg.naturalHeight;
+      const cu=document.getElementById('crop-canvas-up');
+      cu.width=newImg.clientWidth;cu.height=newImg.clientHeight;
+      clearCanvas('upload-det-canvas');
+      clearCanvas('crop-canvas-up');
+    };
+    runInference(blob,'upload-det-canvas');
+    setUpActions(['recrop']);
+  });
+}
+
+function resetUpload(){
+  upBlob=upFile; upCropped=false; upState='loaded';
+  cropRect=null; endCropMode();
+  clearCanvas('upload-det-canvas');
+  clearCanvas('crop-canvas-up');
+  clearResult(); hideErr();
+  const img=document.getElementById('upload-img');
+  img.src=URL.createObjectURL(upFile);
+  img.onload=()=>{
+    const c=document.getElementById('upload-det-canvas');
+    c.width=img.naturalWidth;c.height=img.naturalHeight;
+    setUpActions(['count','crop']);
+    runInference(upFile,'upload-det-canvas');
+  };
+}
+
+// ════════════════════════════════════════════════════════════
+//  CROP ENGINE
+// ════════════════════════════════════════════════════════════
+function bindCropEvents(overlay){
+  overlay.addEventListener('mousedown',onCropStart,{passive:false});
+  overlay.addEventListener('touchstart',onCropStart,{passive:false});
+  document.addEventListener('mousemove',onCropMove,{passive:false});
+  document.addEventListener('touchmove',onCropMove,{passive:false});
+  document.addEventListener('mouseup',onCropEnd);
+  document.addEventListener('touchend',onCropEnd);
+}
+
+function unbindCropEvents(overlay){
+  overlay.removeEventListener('mousedown',onCropStart);
+  overlay.removeEventListener('touchstart',onCropStart);
+  document.removeEventListener('mousemove',onCropMove);
+  document.removeEventListener('touchmove',onCropMove);
+  document.removeEventListener('mouseup',onCropEnd);
+  document.removeEventListener('touchend',onCropEnd);
+}
+
+function getCropPos(e){
+  const r=activeCrop.overlay.getBoundingClientRect();
+  const t=e.touches?e.touches[0]:e;
+  return {
+    x:Math.max(0,Math.min(t.clientX-r.left,r.width)),
+    y:Math.max(0,Math.min(t.clientY-r.top,r.height)),
+    W:r.width, H:r.height
+  };
+}
+
+function onCropStart(e){
+  e.preventDefault(); e.stopPropagation();
+  const p=getCropPos(e);
+  cropStartX=p.x; cropStartY=p.y;
+  cropDragging=true; cropRect=null;
+}
+
+function onCropMove(e){
+  if(!cropDragging||!activeCrop) return;
+  e.preventDefault();
+  const p=getCropPos(e);
+  const x=Math.min(cropStartX,p.x), y=Math.min(cropStartY,p.y);
+  const w=Math.abs(p.x-cropStartX), h=Math.abs(p.y-cropStartY);
+  cropRect={x,y,w,h,W:p.W,H:p.H};
+  drawDarkOverlay(activeCrop.cropCv,cropRect);
+}
+
+function onCropEnd(e){
+  if(!cropDragging) return;
+  cropDragging=false;
+  if(cropRect&&cropRect.w>10&&cropRect.h>10){
+    // Show count button
+    if(activeCrop.isCamera){
+      setCamActions(['count-crop','new']);
+    } else {
+      setUpActions(['count-crop']);
+    }
+    ss('SELECTION READY','ready');
+  }
+}
+
+function endCropMode(){
+  if(activeCrop){
+    unbindCropEvents(activeCrop.overlay);
+    activeCrop.overlay.classList.remove('active');
+    if(activeCrop.isCamera) clearCanvas('crop-canvas-cam');
+    else clearCanvas('crop-canvas-up');
+    activeCrop=null;
+  }
+  cropDragging=false;
+}
+
+// Draw dark overlay with bright window cut out
+function drawDarkOverlay(cv,rect){
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // Full dark
+  ctx.fillStyle='rgba(0,0,0,0.65)';
+  ctx.fillRect(0,0,cv.width,cv.height);
+  if(rect&&rect.w>0&&rect.h>0){
+    // Cut bright region
+    ctx.clearRect(rect.x,rect.y,rect.w,rect.h);
+    // Bright border
+    ctx.strokeStyle='#00e5ff';
+    ctx.lineWidth=2;
+    ctx.shadowBlur=10;
+    ctx.shadowColor='#00e5ff';
+    ctx.strokeRect(rect.x,rect.y,rect.w,rect.h);
+    ctx.shadowBlur=0;
+    // Corner handles
+    const hs=12;
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=2.5;
+    [[rect.x,rect.y,1,1],[rect.x+rect.w,rect.y,-1,1],[rect.x,rect.y+rect.h,1,-1],[rect.x+rect.w,rect.y+rect.h,-1,-1]].forEach(([cx,cy,dx,dy])=>{
+      ctx.beginPath();
+      ctx.moveTo(cx+dx*hs,cy);ctx.lineTo(cx,cy);ctx.lineTo(cx,cy+dy*hs);
+      ctx.stroke();
+    });
+  }
+}
+
+// Extract blob from frozen canvas using normalized rect
+function extractCrop(srcBlob,srcCanvas,rect,scaleX,scaleY,cb){
+  const cx=Math.round(rect.x*scaleX), cy=Math.round(rect.y*scaleY);
+  const cw=Math.round(rect.w*scaleX), ch=Math.round(rect.h*scaleY);
+  const out=document.createElement('canvas');
+  out.width=Math.max(cw,1); out.height=Math.max(ch,1);
+  out.getContext('2d').drawImage(srcCanvas,cx,cy,cw,ch,0,0,cw,ch);
+  out.toBlob(cb,'image/jpeg',0.95);
+}
+
+function extractCropFromImg(srcBlob,imgEl,rect,scaleX,scaleY,cb){
+  const img=new Image();
+  img.onload=()=>{
+    const cx=Math.round(rect.x*scaleX), cy=Math.round(rect.y*scaleY);
+    const cw=Math.round(rect.w*scaleX), ch=Math.round(rect.h*scaleY);
+    const out=document.createElement('canvas');
+    out.width=Math.max(cw,1); out.height=Math.max(ch,1);
+    out.getContext('2d').drawImage(img,cx,cy,cw,ch,0,0,cw,ch);
+    out.toBlob(cb,'image/jpeg',0.95);
+  };
+  img.src=URL.createObjectURL(srcBlob);
+}
+
+// ════════════════════════════════════════════════════════════
+//  INFERENCE
+// ════════════════════════════════════════════════════════════
+async function runInference(blob,canvasId){
+  showLoader(true); clearResult(); ss('ANALYZING...','processing'); hideErr();
+  try{
+    const conf=parseInt(document.getElementById('conf-slider').value)/100;
+    const url=`https://detect.roboflow.com/${RF.project}/${RF.version}?api_key=${RF.apiKey}&confidence=${conf}&overlap=0.3`;
+    const b64=await toB64(blob);
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b64.split(',')[1]});
+    if(!res.ok) throw new Error(`API ${res.status}`);
+    const data=await res.json();
+    const preds=data.predictions||[];
+    drawBoxes(canvasId,preds,data.image);
+    showResult(preds);
+    ss(`${preds.length} STICKERS FOUND`,'ready');
+  }catch(e){showErr(e.message);ss('ERROR','error');}
+  finally{showLoader(false);}
+}
+
+function drawBoxes(canvasId,preds,imgInfo){
+  const cv=document.getElementById(canvasId);
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  if(!preds.length) return;
+  const sx=cv.width/(imgInfo?.width||cv.width);
+  const sy=cv.height/(imgInfo?.height||cv.height);
+  preds.forEach((p,i)=>{
+    const x=(p.x-p.width/2)*sx,y=(p.y-p.height/2)*sy,w=p.width*sx,h=p.height*sy;
+    ctx.save();ctx.shadowBlur=12;ctx.shadowColor='#00e5ff';
+    ctx.strokeStyle='#00e5ff';ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);ctx.restore();
+    ctx.fillStyle='rgba(0,229,255,0.07)';ctx.fillRect(x,y,w,h);
+    const n=String(i+1);ctx.font='bold 11px monospace';
+    const tw=ctx.measureText(n).width;
+    ctx.fillStyle='#00e5ff';ctx.fillRect(x-1,y-19,tw+10,18);
+    ctx.fillStyle='#0a0a0f';ctx.fillText(n,x+4,y-5);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  RESULT
+// ════════════════════════════════════════════════════════════
+function showResult(preds){
+  document.getElementById('result').classList.add('on');
+  animNum(preds.length);
+  const avg=preds.length?preds.reduce((s,p)=>s+p.confidence,0)/preds.length:0;
+  document.getElementById('conf-fill').style.width=(avg*100)+'%';
+  document.getElementById('avg-conf').textContent=avg>0?(avg*100).toFixed(1)+'%':'—';
+  const mn=preds.length?Math.min(...preds.map(p=>p.confidence)):0;
+  const mx=preds.length?Math.max(...preds.map(p=>p.confidence)):0;
+  document.getElementById('stat-grid').innerHTML=`
+    <div class="stat"><div class="stat-v">${preds.length}</div><div class="stat-l">TOTAL COUNT</div></div>
+    <div class="stat"><div class="stat-v">${avg>0?(avg*100).toFixed(0)+'%':'—'}</div><div class="stat-l">AVG CONF</div></div>
+    <div class="stat"><div class="stat-v">${mx>0?(mx*100).toFixed(0)+'%':'—'}</div><div class="stat-l">MAX CONF</div></div>
+    <div class="stat"><div class="stat-v">${mn>0?(mn*100).toFixed(0)+'%':'—'}</div><div class="stat-l">MIN CONF</div></div>`;
+}
+function animNum(t){
+  const el=document.getElementById('big-num');let n=0;
+  const s=Math.max(1,Math.ceil(t/25));
+  const i=setInterval(()=>{n=Math.min(n+s,t);el.textContent=n;if(n>=t)clearInterval(i);},25);
+}
+function clearResult(){document.getElementById('result').classList.remove('on');}
+
+// ════════════════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════════════════
+function clearCanvas(id){const c=document.getElementById(id);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);}
+function toB64(blob){return new Promise((r,j)=>{const rd=new FileReader();rd.onload=()=>r(rd.result);rd.onerror=j;rd.readAsDataURL(blob);});}
+function showLoader(v){document.getElementById('loader').classList.toggle('on',v);}
+function showErr(m){const e=document.getElementById('err');e.textContent='⚠ '+m;e.classList.add('on');}
+function hideErr(){document.getElementById('err').classList.remove('on');}
+
+// ════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════
+initCamera();
 </script>
 </body>
 </html>
